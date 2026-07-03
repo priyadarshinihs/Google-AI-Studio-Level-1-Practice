@@ -5,7 +5,6 @@ import {
   FileSpreadsheet, 
   AlertCircle, 
   CheckCircle2, 
-  RefreshCw, 
   Info, 
   Files, 
   FileText 
@@ -17,7 +16,6 @@ interface FileUploaderProps {
   onSalesLoaded: (sales: WeeklySales[]) => void;
   hasCustomStores: boolean;
   hasCustomSales: boolean;
-  onReset: () => void;
 }
 
 export default function FileUploader({
@@ -25,7 +23,6 @@ export default function FileUploader({
   onSalesLoaded,
   hasCustomStores,
   hasCustomSales,
-  onReset,
 }: FileUploaderProps) {
   const [uploadMode, setUploadMode] = useState<"dual" | "single">("dual");
   
@@ -451,19 +448,6 @@ export default function FileUploader({
   return (
     <div className="bg-white border border-slate-100 rounded-xl shadow-xs p-6 mb-8">
       
-      {/* Reset Datasets Button */}
-      {(hasCustomSales || hasCustomStores) && (
-        <div className="flex justify-end mb-6">
-          <button
-            onClick={onReset}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer shadow-xs"
-          >
-            <RefreshCw className="w-3.5 h-3.5 animate-spin-slow" />
-            Restore Sample Datasets
-          </button>
-        </div>
-      )}
-
       {/* Upload Mode Tab Selector */}
       <div className="flex items-center bg-slate-100 p-1 rounded-xl w-fit mb-6">
         <button
@@ -588,7 +572,7 @@ export default function FileUploader({
                 </div>
                 
                 <h3 className="text-sm font-semibold text-slate-800">
-                  {hasCustomSales ? "Sales Data Uploaded" : "1. Sales Performance Sheet (.xlsx, .csv)"}
+                  {hasCustomSales ? "Sales Data Uploaded" : "1. Retail Weekly Sales"}
                 </h3>
                 <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
                   Drag & drop or <span onClick={() => salesInputRef.current?.click()} className="text-[#0d5c75] font-semibold hover:underline cursor-pointer">browse</span> to upload your transaction records. Any file schema is supported.

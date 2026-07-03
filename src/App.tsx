@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Store, WeeklySales, MergedSalesRecord, DashboardFilters, SummaryMetrics } from "./types";
-import { sampleStores, generateSampleSales } from "./sampleData";
 import FileUploader from "./components/FileUploader";
 import FiltersPanel from "./components/FiltersPanel";
 import KpiCards from "./components/KpiCards";
@@ -29,17 +28,12 @@ export default function App() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Primary datasets
-  const [stores, setStores] = useState<Store[]>(sampleStores);
+  const [stores, setStores] = useState<Store[]>([]);
   const [sales, setSales] = useState<WeeklySales[]>([]);
   
   // Custom upload tracker flags
   const [hasCustomStores, setHasCustomStores] = useState(false);
   const [hasCustomSales, setHasCustomSales] = useState(false);
-
-  // Initialize sample sales on load
-  useEffect(() => {
-    setSales(generateSampleSales());
-  }, []);
 
   // Merge Sales record with Store directories
   const mergedData = useMemo<MergedSalesRecord[]>(() => {
@@ -182,13 +176,6 @@ export default function App() {
   const handleSalesLoaded = (loadedSales: WeeklySales[]) => {
     setSales(loadedSales);
     setHasCustomSales(true);
-  };
-
-  const handleReset = () => {
-    setStores(sampleStores);
-    setSales(generateSampleSales());
-    setHasCustomStores(false);
-    setHasCustomSales(false);
   };
 
   const handleClearFilters = () => {
@@ -474,7 +461,6 @@ export default function App() {
                     onSalesLoaded={handleSalesLoaded}
                     hasCustomStores={hasCustomStores}
                     hasCustomSales={hasCustomSales}
-                    onReset={handleReset}
                   />
                 </div>
               </div>
