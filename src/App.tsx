@@ -184,6 +184,13 @@ export default function App() {
     setHasCustomSales(true);
   };
 
+  const handleReset = () => {
+    setStores(sampleStores);
+    setSales(generateSampleSales());
+    setHasCustomStores(false);
+    setHasCustomSales(false);
+  };
+
   const handleClearFilters = () => {
     setSelectedWeeks(dimensions.weeks);
     setSelectedRegions(dimensions.regions);
