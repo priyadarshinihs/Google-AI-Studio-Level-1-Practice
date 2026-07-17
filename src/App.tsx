@@ -22,6 +22,30 @@ import {
   Upload
 } from "lucide-react";
 
+const parseWeekToDateValue = (w: string): number => {
+  const dmy = w.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (dmy) {
+    const day = parseInt(dmy[1], 10);
+    const month = parseInt(dmy[2], 10);
+    const year = parseInt(dmy[3], 10);
+    return new Date(year, month - 1, day).getTime();
+  }
+  const wNum = parseInt(w.replace(/^[wW]/, ""), 10);
+  if (!isNaN(wNum)) {
+    return wNum;
+  }
+  return 0;
+};
+
+const sortWeeks = (weeks: string[]): string[] => {
+  return [...weeks].sort((a, b) => {
+    const timeA = parseWeekToDateValue(a);
+    const timeB = parseWeekToDateValue(b);
+    if (timeA !== timeB) return timeA - timeB;
+    return a.localeCompare(b, undefined, { numeric: true });
+  });
+};
+
 export default function App() {
   // Navigation tabs & Filter sliding drawer states
   const [activeTab, setActiveTab] = useState<"upload" | "dashboard" | "reports">("upload");
@@ -71,7 +95,7 @@ export default function App() {
     const sorted = (set: Set<string>) => Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
     return {
-      weeks: sorted(weeksSet),
+      weeks: sortWeeks(Array.from(weeksSet)),
       regions: sorted(regionsSet),
       stores: sorted(storesSet),
       cities: sorted(citiesSet),
@@ -97,6 +121,108 @@ export default function App() {
     if (dimensions.storeFormats.length > 0) setSelectedStoreFormats(dimensions.storeFormats);
     if (dimensions.categories.length > 0) setSelectedCategories(dimensions.categories);
   }, [dimensions]);
+
+  // 1. Available Weeks options: filter mergedData by active regions, stores, cities, storeFormats, categories
+  const availableWeeksOptions = useMemo(() => {
+    const set = new Set<string>();
+    mergedData.forEach((r) => {
+      const matchRegion = selectedRegions.length === 0 || selectedRegions.includes(r.region);
+      const matchStore = selectedStores.length === 0 || selectedStores.includes(r.store_name);
+      const matchCity = selectedCities.length === 0 || selectedCities.includes(r.city);
+      const matchFormat = selectedStoreFormats.length === 0 || selectedStoreFormats.includes(r.store_format);
+      const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(r.product_category);
+
+      if (matchRegion && matchStore && matchCity && matchFormat && matchCategory) {
+        if (r.week) set.add(r.week);
+      }
+    });
+    return sortWeeks(Array.from(set));
+  }, [mergedData, selectedRegions, selectedStores, selectedCities, selectedStoreFormats, selectedCategories]);
+
+  // 2. Available Regions options: filter mergedData by active weeks, stores, cities, storeFormats, categories
+  const availableRegionsOptions = useMemo(() => {
+    const set = new Set<string>();
+    mergedData.forEach((r) => {
+      const matchWeek = selectedWeeks.length === 0 || selectedWeeks.includes(r.week);
+      const matchStore = selectedStores.length === 0 || selectedStores.includes(r.store_name);
+      const matchCity = selectedCities.length === 0 || selectedCities.includes(r.city);
+      const matchFormat = selectedStoreFormats.length === 0 || selectedStoreFormats.includes(r.store_format);
+      const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(r.product_category);
+
+      if (matchWeek && matchStore && matchCity && matchFormat && matchCategory) {
+        if (r.region) set.add(r.region);
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [mergedData, selectedWeeks, selectedStores, selectedCities, selectedStoreFormats, selectedCategories]);
+
+  // 3. Available Stores options: filter mergedData by active weeks, regions, cities, storeFormats, categories
+  const availableStoresOptions = useMemo(() => {
+    const set = new Set<string>();
+    mergedData.forEach((r) => {
+      const matchWeek = selectedWeeks.length === 0 || selectedWeeks.includes(r.week);
+      const matchRegion = selectedRegions.length === 0 || selectedRegions.includes(r.region);
+      const matchCity = selectedCities.length === 0 || selectedCities.includes(r.city);
+      const matchFormat = selectedStoreFormats.length === 0 || selectedStoreFormats.includes(r.store_format);
+      const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(r.product_category);
+
+      if (matchWeek && matchRegion && matchCity && matchFormat && matchCategory) {
+        if (r.store_name) set.add(r.store_name);
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [mergedData, selectedWeeks, selectedRegions, selectedCities, selectedStoreFormats, selectedCategories]);
+
+  // 4. Available Cities options: filter mergedData by active weeks, regions, stores, storeFormats, categories
+  const availableCitiesOptions = useMemo(() => {
+    const set = new Set<string>();
+    mergedData.forEach((r) => {
+      const matchWeek = selectedWeeks.length === 0 || selectedWeeks.includes(r.week);
+      const matchRegion = selectedRegions.length === 0 || selectedRegions.includes(r.region);
+      const matchStore = selectedStores.length === 0 || selectedStores.includes(r.store_name);
+      const matchFormat = selectedStoreFormats.length === 0 || selectedStoreFormats.includes(r.store_format);
+      const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(r.product_category);
+
+      if (matchWeek && matchRegion && matchStore && matchFormat && matchCategory) {
+        if (r.city) set.add(r.city);
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [mergedData, selectedWeeks, selectedRegions, selectedStores, selectedStoreFormats, selectedCategories]);
+
+  // 5. Available Store Formats options: filter mergedData by active weeks, regions, stores, cities, categories
+  const availableStoreFormatsOptions = useMemo(() => {
+    const set = new Set<string>();
+    mergedData.forEach((r) => {
+      const matchWeek = selectedWeeks.length === 0 || selectedWeeks.includes(r.week);
+      const matchRegion = selectedRegions.length === 0 || selectedRegions.includes(r.region);
+      const matchStore = selectedStores.length === 0 || selectedStores.includes(r.store_name);
+      const matchCity = selectedCities.length === 0 || selectedCities.includes(r.city);
+      const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(r.product_category);
+
+      if (matchWeek && matchRegion && matchStore && matchCity && matchCategory) {
+        if (r.store_format) set.add(r.store_format);
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [mergedData, selectedWeeks, selectedRegions, selectedStores, selectedCities, selectedCategories]);
+
+  // 6. Available Categories options: filter mergedData by active weeks, regions, stores, cities, storeFormats
+  const availableCategoriesOptions = useMemo(() => {
+    const set = new Set<string>();
+    mergedData.forEach((r) => {
+      const matchWeek = selectedWeeks.length === 0 || selectedWeeks.includes(r.week);
+      const matchRegion = selectedRegions.length === 0 || selectedRegions.includes(r.region);
+      const matchStore = selectedStores.length === 0 || selectedStores.includes(r.store_name);
+      const matchCity = selectedCities.length === 0 || selectedCities.includes(r.city);
+      const matchFormat = selectedStoreFormats.length === 0 || selectedStoreFormats.includes(r.store_format);
+
+      if (matchWeek && matchRegion && matchStore && matchCity && matchFormat) {
+        if (r.product_category) set.add(r.product_category);
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [mergedData, selectedWeeks, selectedRegions, selectedStores, selectedCities, selectedStoreFormats]);
 
   // Filter application helper
   const filteredData = useMemo<MergedSalesRecord[]>(() => {
@@ -315,12 +441,12 @@ export default function App() {
             
             <div className="overflow-y-auto flex-1 pr-1 space-y-6">
               <FiltersPanel
-                availableWeeks={dimensions.weeks}
-                availableRegions={dimensions.regions}
-                availableStores={dimensions.stores}
-                availableCities={dimensions.cities}
-                availableStoreFormats={dimensions.storeFormats}
-                availableCategories={dimensions.categories}
+                availableWeeks={availableWeeksOptions}
+                availableRegions={availableRegionsOptions}
+                availableStores={availableStoresOptions}
+                availableCities={availableCitiesOptions}
+                availableStoreFormats={availableStoreFormatsOptions}
+                availableCategories={availableCategoriesOptions}
 
                 selectedWeeks={selectedWeeks}
                 selectedRegions={selectedRegions}

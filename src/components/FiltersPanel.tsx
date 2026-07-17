@@ -62,10 +62,12 @@ export function SlicerDropdown({
 
   // Label text to display in the dropdown selection box (Matches Power BI slicer behavior)
   const getSelectionLabel = () => {
-    if (selected.length === 0) return "All"; // Power BI default selection is all when empty / nothing filtered
-    if (selected.length === available.length) return "All";
-    if (selected.length === 1) return selected[0];
-    return `${selected.length} selected`;
+    if (selected.length === 0) return "All"; // default selection is all when empty / nothing filtered
+    const activeSelected = selected.filter((item) => available.includes(item));
+    if (activeSelected.length === 0) return "None";
+    if (activeSelected.length === available.length) return "All";
+    if (activeSelected.length === 1) return activeSelected[0];
+    return `${activeSelected.length} selected`;
   };
 
   const filteredList = available.filter((item) =>

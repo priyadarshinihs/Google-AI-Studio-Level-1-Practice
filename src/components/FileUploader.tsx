@@ -113,7 +113,7 @@ export default function FileUploader({
       return "";
     };
 
-    const weekKey = findKey(["week", "date", "time", "month", "year", "period", "day"]);
+    const weekKey = findKey(["weekstartdate", "week_start_date", "weekstart", "week_start", "startdate", "week", "date", "time", "month", "year", "period", "day"]);
     const storeIdKey = findKey(["storeid", "storecode", "storeno", "branchid", "store", "id", "shop"]);
     const categoryKey = findKey(["category", "productcategory", "dept", "department", "product", "item", "group"]);
     
@@ -126,9 +126,129 @@ export default function FileUploader({
     const transactionsKey = findKey(["transactionscount", "transactions", "orders", "trans", "count", "quantity", "qty", "sold", "footfall"]);
     const stockoutKey = findKey(["stockoutrisk", "stockout", "outofstock", "shortage", "status", "risk"]);
 
-    return jsonRows.map((row: any, index) => {
+    // Auto-detect date format by scanning the whole file
+    let detectedFormat: "DMY" | "MDY" | null = null;
+    if (weekKey) {
+      for (const row of jsonRows) {
+        const raw = row[weekKey];
+        if (raw !== undefined && raw !== null) {
+          const str = String(raw).trim();
+          const match = str.match(/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})$/);
+          if (match) {
+            const p1 = parseInt(match[1], 10);
+            const p2 = parseInt(match[2], 10);
+            if (p1 > 12 && p1 <= 31 && p2 <= 12) {
+              detectedFormat = "DMY";
+              break;
+            }
+            if (p2 > 12 && p2 <= 31 && p1 <= 12) {
+              detectedFormat = "MDY";
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Helper to extract Week Number of Year from any serial number, date string or week text
+    const getWeekFromValue = (val: any): string | null => {
+      if (val === undefined || val === null) return null;
+      const str = String(val).trim();
+      if (!str) return null;
+
+      let date: Date | null = null;
+      
+      // Check if it's an Excel serial date number
+      const numVal = Number(str);
+      if (!isNaN(numVal) && numVal > 30000 && numVal < 100000) {
+        const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+        const msInDay = 24 * 60 * 60 * 1000;
+        date = new Date(excelEpoch.getTime() + numVal * msInDay);
+      } else {
+        // Try parsing YYYY-MM-DD first (standard ISO)
+        const isoMatch = str.match(/^(\d{4})[\/\.-](\d{1,2})[\/\.-](\d{1,2})$/);
+        if (isoMatch) {
+          const year = parseInt(isoMatch[1], 10);
+          const month = parseInt(isoMatch[2], 10);
+          const day = parseInt(isoMatch[3], 10);
+          date = new Date(year, month - 1, day);
+        } else {
+          // Parse DD-MM-YYYY or MM-DD-YYYY
+          const dmyMatch = str.match(/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})$/);
+          if (dmyMatch) {
+            const part1 = parseInt(dmyMatch[1], 10);
+            const part2 = parseInt(dmyMatch[2], 10);
+            const year = parseInt(dmyMatch[3], 10);
+            const fullYear = year < 100 ? (year > 50 ? 1900 + year : 2000 + year) : year;
+            
+            if (detectedFormat === "DMY") {
+              // DD-MM-YYYY
+              date = new Date(fullYear, part2 - 1, part1);
+            } else if (detectedFormat === "MDY") {
+              // MM-DD-YYYY
+              date = new Date(fullYear, part1 - 1, part2);
+            } else {
+              // Intelligent fallback when undecided: 
+              // If first part > 12, it must be DD-MM-YYYY
+              if (part1 > 12) {
+                date = new Date(fullYear, part2 - 1, part1);
+              } else if (part2 > 12) {
+                // If second part > 12, it must be MM-DD-YYYY
+                date = new Date(fullYear, part1 - 1, part2);
+              } else {
+                // Default to DD-MM-YYYY in Indian/UK context (like Bengaluru Retail Hub)
+                date = new Date(fullYear, part2 - 1, part1);
+              }
+            }
+          } else {
+            // Try standard Date parsing as last resort
+            const parsedMs = Date.parse(str);
+            if (!isNaN(parsedMs)) {
+              date = new Date(parsedMs);
+            }
+          }
+        }
+      }
+
+      if (date && !isNaN(date.getTime())) {
+        const tempDate = new Date(date.getTime());
+        tempDate.setHours(0, 0, 0, 0);
+        const startOfYear = new Date(tempDate.getFullYear(), 0, 1);
+        const pastDaysOfYear = (tempDate.getTime() - startOfYear.getTime()) / 86400000;
+        const weekNum = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
+        if (weekNum >= 1 && weekNum <= 53) {
+          return `W${weekNum}`;
+        }
+      }
+
+      // Check if it's already in W + week number format (e.g. W1, W24, W05)
+      if (/^w\d+$/i.test(str)) {
+        const num = parseInt(str.replace(/^[wW]/, ""), 10);
+        if (!isNaN(num) && num >= 1 && num <= 53) {
+          return `W${num}`;
+        }
+        return null;
+      }
+
+      // Try a simple index / integer if it falls under 1..53
+      const parsedInt = parseInt(str, 10);
+      if (!isNaN(parsedInt) && String(parsedInt) === str && parsedInt >= 1 && parsedInt <= 53) {
+        return `W${parsedInt}`;
+      }
+
+      return null;
+    };
+
+    const parsedRows: WeeklySales[] = [];
+
+    jsonRows.forEach((row: any, index) => {
       const rawWeek = weekKey ? row[weekKey] : "";
-      const week = rawWeek ? String(rawWeek).trim() : `W${Math.floor(index / 20) + 1}`;
+      const week = getWeekFromValue(rawWeek);
+      
+      // Filter out invalid date / week (removes unwanted data)
+      if (!week) {
+        return;
+      }
       
       const rawStoreId = storeIdKey ? row[storeIdKey] : "";
       const store_id = rawStoreId ? String(rawStoreId).trim() : `S${(index % 5) + 1}`;
@@ -181,7 +301,7 @@ export default function FileUploader({
         }
       }
 
-      return {
+      parsedRows.push({
         week,
         store_id,
         product_category,
@@ -192,8 +312,14 @@ export default function FileUploader({
         discount_amount,
         transactions_count,
         stockout_risk,
-      };
+      });
     });
+
+    if (parsedRows.length === 0) {
+      throw new Error("No rows with valid weeks or dates were found in the uploaded file.");
+    }
+
+    return parsedRows;
   };
 
   const parseStoresJson = (jsonRows: any[]): Store[] => {

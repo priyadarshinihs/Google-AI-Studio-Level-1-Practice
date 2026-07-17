@@ -18,6 +18,21 @@ import {
 import { MergedSalesRecord } from "../types";
 import { TrendingUp, MapPin, Tag, Trophy, Award, ShoppingBag, AlertTriangle } from "lucide-react";
 
+const parseWeekToDateValue = (w: string): number => {
+  const dmy = w.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (dmy) {
+    const day = parseInt(dmy[1], 10);
+    const month = parseInt(dmy[2], 10);
+    const year = parseInt(dmy[3], 10);
+    return new Date(year, month - 1, day).getTime();
+  }
+  const wNum = parseInt(w.replace(/^[wW]/, ""), 10);
+  if (!isNaN(wNum)) {
+    return wNum;
+  }
+  return 0;
+};
+
 interface ChartsGridProps {
   filteredData: MergedSalesRecord[];
 }
@@ -38,7 +53,12 @@ export default function ChartsGrid({ filteredData }: ChartsGridProps) {
       map[r.week].lastYearSales += r.net_sales * 0.9 + (r.transactions_count * 20);
     });
 
-    return Object.values(map).sort((a, b) => a.week.localeCompare(b.week));
+    return Object.values(map).sort((a, b) => {
+      const timeA = parseWeekToDateValue(a.week);
+      const timeB = parseWeekToDateValue(b.week);
+      if (timeA !== timeB) return timeA - timeB;
+      return a.week.localeCompare(b.week, undefined, { numeric: true });
+    });
   }, [filteredData]);
 
   // Calculate average target achievement for header stat
